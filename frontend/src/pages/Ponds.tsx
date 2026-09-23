@@ -13,7 +13,10 @@ const Ponds: React.FC = () => {
     area: '',
     water_depth: '',
     species: '',
-    status: 'active'
+    status: 'active',
+    capacity: '1',
+    active_from: '',
+    active_until: ''
   });
 
   const fetchPonds = async () => {
@@ -37,15 +40,18 @@ const Ponds: React.FC = () => {
       const data = {
         ...formData,
         area: parseFloat(formData.area),
-        water_depth: parseFloat(formData.water_depth)
+        water_depth: parseFloat(formData.water_depth),
+        capacity: parseInt(formData.capacity) || 1,
+        active_from: formData.active_from || undefined,
+        active_until: formData.active_until || undefined
       };
-      
+
       if (editingPond) {
         await pondApi.update(editingPond.id, data);
       } else {
         await pondApi.create(data);
       }
-      
+
       setShowModal(false);
       setEditingPond(null);
       setFormData({
@@ -53,7 +59,10 @@ const Ponds: React.FC = () => {
         area: '',
         water_depth: '',
         species: '',
-        status: 'active'
+        status: 'active',
+        capacity: '1',
+        active_from: '',
+        active_until: ''
       });
       fetchPonds();
     } catch (error) {
@@ -68,7 +77,10 @@ const Ponds: React.FC = () => {
       area: pond.area.toString(),
       water_depth: pond.water_depth.toString(),
       species: pond.species || '',
-      status: pond.status
+      status: pond.status,
+      capacity: (pond.capacity ?? 1).toString(),
+      active_from: pond.active_from || '',
+      active_until: pond.active_until || ''
     });
     setShowModal(true);
   };
@@ -107,7 +119,10 @@ const Ponds: React.FC = () => {
               area: '',
               water_depth: '',
               species: '',
-              status: 'active'
+              status: 'active',
+              capacity: '1',
+              active_from: '',
+              active_until: ''
             });
             setShowModal(true);
           }}
@@ -127,6 +142,8 @@ const Ponds: React.FC = () => {
                 <th>面积(亩)</th>
                 <th>水深(米)</th>
                 <th>养殖品种</th>
+                <th>容量(批次)</th>
+                <th>有效期</th>
                 <th>状态</th>
                 <th>操作</th>
               </tr>
@@ -138,6 +155,12 @@ const Ponds: React.FC = () => {
                   <td>{pond.area}</td>
                   <td>{pond.water_depth}</td>
                   <td>{pond.species || '-'}</td>
+                  <td>{pond.capacity ?? 1}</td>
+                  <td>
+                    {pond.active_from || pond.active_until
+                      ? `${pond.active_from || '不限'} ~ ${pond.active_until || '不限'}`
+                      : '不限'}
+                  </td>
                   <td>
                     <span className={`badge ${pond.status === 'active' ? 'badge-success' : 'badge-info'}`}>
                       {pond.status === 'active' ? '使用中' : '闲置'}
@@ -163,7 +186,7 @@ const Ponds: React.FC = () => {
               ))}
               {ponds.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center py-8 text-gray-500">
+                  <td colSpan={8} className="text-center py-8 text-gray-500">
                     暂无塘口数据
                   </td>
                 </tr>
@@ -260,6 +283,46 @@ const Ponds: React.FC = () => {
                   <option value="active">使用中</option>
                   <option value="inactive">闲置</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  同时段容量(批次数) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  value={formData.capacity}
+                  onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                  className="input-field"
+                  placeholder="同一时段可承载的养殖批次上限"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    有效期开始
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.active_from}
+                    onChange={(e) => setFormData({ ...formData, active_from: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    有效期结束
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.active_until}
+                    onChange={(e) => setFormData({ ...formData, active_until: e.target.value })}
+                    className="input-field"
+                  />
+                </div>
               </div>
 
               <div className="flex justify-end space-x-3 pt-4">

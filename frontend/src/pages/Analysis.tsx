@@ -165,7 +165,11 @@ const Analysis: React.FC = () => {
               </div>
               <div className="p-3 bg-purple-50 rounded-lg">
                 <p className="text-sm text-purple-600">状态</p>
-                <p className="font-semibold">{searchResult.batch.status}</p>
+                <p className="font-semibold">{
+                  searchResult.batch.status === 'active' ? '养殖中' :
+                  searchResult.batch.status === 'harvested' ? '已出塘' :
+                  searchResult.batch.status === 'closed' ? '已关闭' : searchResult.batch.status
+                }</p>
               </div>
             </div>
 
@@ -373,10 +377,11 @@ const Analysis: React.FC = () => {
                     </div>
                     <span className={`badge ${
                       batch.status === 'active' ? 'badge-success' :
-                      batch.status === 'completed' ? 'badge-info' : 'badge-warning'
+                      batch.status === 'harvested' ? 'badge-info' : 'badge-warning'
                     }`}>
                       {batch.status === 'active' ? '养殖中' :
-                       batch.status === 'completed' ? '已完成' : '待开始'}
+                       batch.status === 'harvested' ? '已出塘' :
+                       batch.status === 'closed' ? '已关闭' : batch.status}
                     </span>
                   </div>
                 </div>
@@ -393,9 +398,39 @@ const Analysis: React.FC = () => {
           ) : analysisData && selectedBatchId ? (
             <>
               <div className="card">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                  养殖周期分析 - {getBatchNumber(selectedBatchId)}
-                </h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    养殖周期分析 - {getBatchNumber(selectedBatchId)}
+                  </h2>
+                  <span className={`badge ${
+                    analysisData.status === 'active' ? 'badge-success' :
+                    analysisData.status === 'harvested' ? 'badge-info' : 'badge-warning'
+                  }`}>
+                    {analysisData.status === 'active' ? '养殖中' :
+                     analysisData.status === 'harvested' ? '已出塘' :
+                     analysisData.status === 'closed' ? '已关闭' : analysisData.status}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-gray-500">投苗日期</p>
+                    <p className="font-semibold">{analysisData.stocking_date}</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-gray-500">实际收获日期</p>
+                    <p className="font-semibold">{analysisData.harvest_date || '-'}</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-gray-500">养殖天数</p>
+                    <p className="font-semibold">
+                      {analysisData.days_cultured != null ? `${analysisData.days_cultured} 天` : '-'}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-gray-500">塘口</p>
+                    <p className="font-semibold">{analysisData.pond_name}</p>
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="p-4 bg-green-50 rounded-lg">
                     <div className="flex items-center space-x-3">

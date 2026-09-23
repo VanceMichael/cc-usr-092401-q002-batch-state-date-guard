@@ -12,6 +12,9 @@ class Pond(Base):
     water_depth = Column(Float, nullable=False, comment="水深(米)")
     species = Column(String(100), comment="养殖品种")
     status = Column(String(20), default="active", comment="状态: active, inactive")
+    capacity = Column(Integer, default=1, comment="同一时段可承载的养殖批次上限")
+    active_from = Column(Date, comment="有效期开始(含)，空表示不限")
+    active_until = Column(Date, comment="有效期结束(含)，空表示不限")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -28,16 +31,33 @@ class Batch(Base):
     estimated_harvest_date = Column(Date, comment="预计收获日期")
     actual_harvest_date = Column(Date, comment="实际收获日期")
     status = Column(String(20), default="active", comment="状态: active, harvested, closed")
+    version = Column(Integer, default=1, nullable=False, comment="乐观锁版本号，每次变更+1")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     pond = relationship("Pond", back_populates="batches")
+    revisions = relationship("BatchRevision", back_populates="batch", order_by="BatchRevision.id")
     stocking_records = relationship("StockingRecord", back_populates="batch")
     feeding_records = relationship("FeedingRecord", back_populates="batch")
     water_quality_records = relationship("WaterQualityRecord", back_populates="batch")
     medication_records = relationship("MedicationRecord", back_populates="batch")
     cost_records = relationship("CostRecord", back_populates="batch")
     harvest_sales = relationship("HarvestSale", back_populates="batch")
+
+class BatchRevision(Base):
+    """批次审计版本：每次状态/日期/塘口变更（含回退与系统归一）都会留下一条不可变快照。"""
+    __tablename__ = "batch_revisions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    batch_id = Column(Integer, ForeignKey("batches.id"), nullable=False, index=True)
+    revision = Column(Integer, nullable=False, comment="对应的批次版本号")
+    change_type = Column(String(20), nullable=False, comment="变更类型: create, update, rollback, transfer, normalize")
+    reason = Column(Text, comment="变更原因（回退与归一必填）")
+    changed_fields = Column(Text, comment="本次变更字段列表(JSON)")
+    snapshot = Column(Text, nullable=False, comment="变更后批次完整快照(JSON)")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    batch = relationship("Batch", back_populates="revisions")
 
 class StockingRecord(Base):
     __tablename__ = "stocking_records"

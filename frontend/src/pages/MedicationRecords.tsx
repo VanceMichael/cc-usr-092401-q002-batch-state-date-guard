@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import { Plus, Edit2, Trash2, X, Pill } from 'lucide-react';
 import { medicationRecordApi, batchApi } from '../services/api';
 import type { MedicationRecord, Batch } from '../types';
@@ -9,6 +10,7 @@ const MedicationRecords: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingRecord, setEditingRecord] = useState<MedicationRecord | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     batch_id: '',
     medication_date: '',
@@ -44,6 +46,7 @@ const MedicationRecords: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
     try {
       const data = {
         ...formData,
@@ -74,12 +77,17 @@ const MedicationRecords: React.FC = () => {
       });
       fetchData();
     } catch (error) {
-      console.error('Error saving record:', error);
+      if (axios.isAxiosError(error) && typeof error.response?.data?.detail === 'string') {
+        setSubmitError(error.response.data.detail);
+      } else {
+        setSubmitError('保存失败，请稍后重试');
+      }
     }
   };
 
   const handleEdit = (record: MedicationRecord) => {
     setEditingRecord(record);
+    setSubmitError(null);
     setFormData({
       batch_id: record.batch_id.toString(),
       medication_date: record.medication_date,
@@ -227,6 +235,11 @@ const MedicationRecords: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {submitError && (
+                <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+                  {submitError}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -240,11 +253,17 @@ const MedicationRecords: React.FC = () => {
                   >
                     <option value="">请选择批次</option>
                     {batches.map((batch) => (
-                      <option key={batch.id} value={batch.id}>
+                      <option
+                        key={batch.id}
+                        value={batch.id}
+                        disabled={batch.status !== 'active'}
+                      >
                         {batch.batch_number} - {batch.species}
+                        {batch.status !== 'active' ? '（已出塘/已关闭）' : ''}
                       </option>
                     ))}
                   </select>
+                  <p className="text-xs text-gray-500 mt-1">仅养殖中的批次可以新增用药记录</p>
                 </div>
 
                 <div>

@@ -8,6 +8,9 @@ class PondBase(BaseModel):
     water_depth: float
     species: Optional[str] = None
     status: Optional[str] = "active"
+    capacity: Optional[int] = 1
+    active_from: Optional[date] = None
+    active_until: Optional[date] = None
 
 class PondCreate(PondBase):
     pass
@@ -18,6 +21,9 @@ class PondUpdate(BaseModel):
     water_depth: Optional[float] = None
     species: Optional[str] = None
     status: Optional[str] = None
+    capacity: Optional[int] = None
+    active_from: Optional[date] = None
+    active_until: Optional[date] = None
 
 class PondResponse(PondBase):
     id: int
@@ -47,14 +53,60 @@ class BatchUpdate(BaseModel):
     estimated_harvest_date: Optional[date] = None
     actual_harvest_date: Optional[date] = None
     status: Optional[str] = None
+    version: Optional[int] = None
+    reason: Optional[str] = None
+    transfer_date: Optional[date] = None
 
 class BatchResponse(BatchBase):
     id: int
+    version: int
     created_at: datetime
     updated_at: datetime
 
     class Config:
         orm_mode = True
+
+class BatchRevisionResponse(BaseModel):
+    id: int
+    batch_id: int
+    revision: int
+    change_type: str
+    reason: Optional[str] = None
+    changed_fields: Optional[str] = None
+    snapshot: str
+    created_at: datetime
+
+    class Config:
+        orm_mode = True
+
+class InconsistencyIssue(BaseModel):
+    code: str
+    message: str
+    auto_fixable: bool
+
+class BatchInconsistency(BaseModel):
+    batch_id: int
+    batch_number: str
+    status: str
+    issues: List[InconsistencyIssue]
+
+class InconsistencyReport(BaseModel):
+    total: int
+    items: List[BatchInconsistency]
+
+class NormalizeAction(BaseModel):
+    batch_id: int
+    batch_number: str
+    actions: List[str]
+
+class NormalizeSkipped(BaseModel):
+    batch_id: int
+    batch_number: str
+    reasons: List[str]
+
+class NormalizeResult(BaseModel):
+    normalized: List[NormalizeAction]
+    skipped: List[NormalizeSkipped]
 
 class StockingRecordBase(BaseModel):
     batch_id: int
@@ -263,6 +315,9 @@ class CultureCycleAnalysis(BaseModel):
     batch_number: str
     pond_name: str
     species: str
+    status: str
+    version: int
+    pond_id: Optional[int] = None
     stocking_date: date
     harvest_date: Optional[date] = None
     days_cultured: Optional[int] = None

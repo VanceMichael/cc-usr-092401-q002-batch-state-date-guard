@@ -42,7 +42,8 @@ def analyze_cycle(batch_id: int, db: Session = Depends(get_db)):
     
     harvest_date = batch.actual_harvest_date
     days_cultured = None
-    if harvest_date:
+    if harvest_date and harvest_date >= batch.stocking_date:
+        # 状态机与归一保证不会出现负周期；此处兜底防御未归一的历史数据
         days_cultured = (harvest_date - batch.stocking_date).days
     
     survival_rate = 0
@@ -109,6 +110,9 @@ def analyze_cycle(batch_id: int, db: Session = Depends(get_db)):
         batch_number=batch.batch_number,
         pond_name=pond.name if pond else "未知",
         species=batch.species,
+        status=batch.status,
+        version=batch.version,
+        pond_id=batch.pond_id,
         stocking_date=batch.stocking_date,
         harvest_date=harvest_date,
         days_cultured=days_cultured,

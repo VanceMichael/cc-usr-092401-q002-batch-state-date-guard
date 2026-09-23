@@ -2,7 +2,8 @@ import axios from 'axios';
 import type {
   Pond, Batch, StockingRecord, FeedingRecord, WaterQualityRecord,
   MedicationRecord, CostRecord, HarvestSale, CultureCycleAnalysis,
-  CostSummary, FeedingSummary, BatchTraceability
+  CostSummary, FeedingSummary, BatchTraceability,
+  BatchRevision, InconsistencyReport, NormalizeResult
 } from '../types';
 
 const API_BASE_URL = '/api';
@@ -24,16 +25,25 @@ export const pondApi = {
   delete: (id: number) => api.delete(`/ponds/${id}/`),
 };
 
+export interface BatchUpdatePayload extends Partial<Batch> {
+  version: number;
+  reason?: string;
+  transfer_date?: string;
+}
+
 export const batchApi = {
   getAll: () => api.get<Batch[]>('/batches/'),
   getById: (id: number) => api.get<Batch>(`/batches/${id}/`),
-  getByNumber: (batchNumber: string) => 
+  getByNumber: (batchNumber: string) =>
     api.get<Batch>(`/batches/by-number/${batchNumber}/`),
-  create: (data: Omit<Batch, 'id' | 'created_at' | 'updated_at'>) => 
+  create: (data: Omit<Batch, 'id' | 'created_at' | 'updated_at' | 'version'>) =>
     api.post<Batch>('/batches/', data),
-  update: (id: number, data: Partial<Batch>) => 
+  update: (id: number, data: BatchUpdatePayload) =>
     api.put<Batch>(`/batches/${id}/`, data),
   delete: (id: number) => api.delete(`/batches/${id}/`),
+  getRevisions: (id: number) => api.get<BatchRevision[]>(`/batches/${id}/revisions/`),
+  getInconsistencies: () => api.get<InconsistencyReport>('/batches/inconsistencies/'),
+  normalize: () => api.post<NormalizeResult>('/batches/normalize/'),
 };
 
 export const stockingRecordApi = {

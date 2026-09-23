@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from ..database import get_db
-from ..models import WaterQualityRecord, Batch
+from ..models import WaterQualityRecord
 from ..schemas import WaterQualityRecordCreate, WaterQualityRecordUpdate, WaterQualityRecordResponse
+from ..batch_state import ensure_batch_accepting_records
 
 router = APIRouter(
     prefix="/api/water-quality-records",
@@ -12,10 +13,8 @@ router = APIRouter(
 
 @router.post("/", response_model=WaterQualityRecordResponse)
 def create_water_quality_record(record: WaterQualityRecordCreate, db: Session = Depends(get_db)):
-    db_batch = db.query(Batch).filter(Batch.id == record.batch_id).first()
-    if not db_batch:
-        raise HTTPException(status_code=404, detail="批次不存在")
-    
+    ensure_batch_accepting_records(db, record.batch_id, "water_quality")
+
     new_record = WaterQualityRecord(**record.dict())
     db.add(new_record)
     db.commit()
@@ -44,6 +43,8 @@ def update_water_quality_record(record_id: int, record: WaterQualityRecordUpdate
         raise HTTPException(status_code=404, detail="水质监测记录不存在")
     
     update_data = record.dict(exclude_unset=True)
+    if "batch_id" in update_data and update_data["batch_id"] != db_record.batch_id:
+        ensure_batch_accepting_records(db, update_data["batch_id"], "water_quality")
     for key, value in update_data.items():
         setattr(db_record, key, value)
     

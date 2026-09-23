@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import { Plus, Edit2, Trash2, X } from 'lucide-react';
 import { feedingRecordApi, batchApi } from '../services/api';
 import type { FeedingRecord, Batch } from '../types';
@@ -9,6 +10,7 @@ const FeedingRecords: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingRecord, setEditingRecord] = useState<FeedingRecord | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     batch_id: '',
     feeding_date: '',
@@ -41,6 +43,7 @@ const FeedingRecords: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
     try {
       const data = {
         ...formData,
@@ -69,12 +72,17 @@ const FeedingRecords: React.FC = () => {
       });
       fetchData();
     } catch (error) {
-      console.error('Error saving record:', error);
+      if (axios.isAxiosError(error) && typeof error.response?.data?.detail === 'string') {
+        setSubmitError(error.response.data.detail);
+      } else {
+        setSubmitError('保存失败，请稍后重试');
+      }
     }
   };
 
   const handleEdit = (record: FeedingRecord) => {
     setEditingRecord(record);
+    setSubmitError(null);
     setFormData({
       batch_id: record.batch_id.toString(),
       feeding_date: record.feeding_date,
@@ -212,6 +220,11 @@ const FeedingRecords: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {submitError && (
+                <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+                  {submitError}
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   养殖批次 <span className="text-red-500">*</span>
@@ -224,11 +237,17 @@ const FeedingRecords: React.FC = () => {
                 >
                   <option value="">请选择批次</option>
                   {batches.map((batch) => (
-                    <option key={batch.id} value={batch.id}>
+                    <option
+                      key={batch.id}
+                      value={batch.id}
+                      disabled={batch.status !== 'active'}
+                    >
                       {batch.batch_number} - {batch.species}
+                      {batch.status !== 'active' ? '（已出塘/已关闭）' : ''}
                     </option>
                   ))}
                 </select>
+                <p className="text-xs text-gray-500 mt-1">仅养殖中的批次可以新增投喂记录</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

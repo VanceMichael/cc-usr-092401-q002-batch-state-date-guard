@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from ..database import get_db
-from ..models import HarvestSale, Batch
+from ..models import HarvestSale
 from ..schemas import HarvestSaleCreate, HarvestSaleUpdate, HarvestSaleResponse
+from ..batch_state import ensure_batch_not_closed
 
 router = APIRouter(
     prefix="/api/harvest-sales",
@@ -12,10 +13,8 @@ router = APIRouter(
 
 @router.post("/", response_model=HarvestSaleResponse)
 def create_harvest_sale(sale: HarvestSaleCreate, db: Session = Depends(get_db)):
-    db_batch = db.query(Batch).filter(Batch.id == sale.batch_id).first()
-    if not db_batch:
-        raise HTTPException(status_code=404, detail="批次不存在")
-    
+    ensure_batch_not_closed(db, sale.batch_id, "出塘销售")
+
     if sale.total_amount is None:
         sale.total_amount = sale.weight * sale.unit_price
     

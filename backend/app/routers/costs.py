@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from ..database import get_db
-from ..models import CostRecord, Batch
+from ..models import CostRecord
 from ..schemas import CostRecordCreate, CostRecordUpdate, CostRecordResponse
+from ..batch_state import ensure_batch_not_closed
 
 router = APIRouter(
     prefix="/api/cost-records",
@@ -12,10 +13,8 @@ router = APIRouter(
 
 @router.post("/", response_model=CostRecordResponse)
 def create_cost_record(record: CostRecordCreate, db: Session = Depends(get_db)):
-    db_batch = db.query(Batch).filter(Batch.id == record.batch_id).first()
-    if not db_batch:
-        raise HTTPException(status_code=404, detail="批次不存在")
-    
+    ensure_batch_not_closed(db, record.batch_id, "成本")
+
     new_record = CostRecord(**record.dict())
     db.add(new_record)
     db.commit()

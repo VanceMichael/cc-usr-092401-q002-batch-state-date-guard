@@ -5,6 +5,9 @@ export interface Pond {
   water_depth: number;
   species?: string;
   status: string;
+  capacity?: number;
+  active_from?: string;
+  active_until?: string;
   created_at: string;
   updated_at: string;
 }
@@ -18,8 +21,43 @@ export interface Batch {
   estimated_harvest_date?: string;
   actual_harvest_date?: string;
   status: string;
+  version: number;
   created_at: string;
   updated_at: string;
+}
+
+export interface BatchRevision {
+  id: number;
+  batch_id: number;
+  revision: number;
+  change_type: string;
+  reason?: string;
+  changed_fields?: string;
+  snapshot: string;
+  created_at: string;
+}
+
+export interface InconsistencyIssue {
+  code: string;
+  message: string;
+  auto_fixable: boolean;
+}
+
+export interface BatchInconsistency {
+  batch_id: number;
+  batch_number: string;
+  status: string;
+  issues: InconsistencyIssue[];
+}
+
+export interface InconsistencyReport {
+  total: number;
+  items: BatchInconsistency[];
+}
+
+export interface NormalizeResult {
+  normalized: { batch_id: number; batch_number: string; actions: string[] }[];
+  skipped: { batch_id: number; batch_number: string; reasons: string[] }[];
 }
 
 export interface StockingRecord {
@@ -126,6 +164,9 @@ export interface CultureCycleAnalysis {
   batch_number: string;
   pond_name: string;
   species: string;
+  status: string;
+  version: number;
+  pond_id?: number;
   stocking_date: string;
   harvest_date?: string;
   days_cultured?: number;
