@@ -4,19 +4,25 @@ from typing import List
 from ..database import get_db
 from ..models import FeedingRecord, Batch
 from ..schemas import FeedingRecordCreate, FeedingRecordUpdate, FeedingRecordResponse
+from ..services.batch_service import assert_batch_accepts_activity
 
 router = APIRouter(
     prefix="/api/feeding-records",
     tags=["投喂记录"]
 )
 
+def _get_batch_or_404(db: Session, batch_id: int) -> Batch:
+    batch = db.query(Batch).filter(Batch.id == batch_id).first()
+    if not batch:
+        raise HTTPException(status_code=404, detail="批次不存在")
+    return batch
+
 @router.post("/", response_model=FeedingRecordResponse)
 def create_feeding_record(record: FeedingRecordCreate, db: Session = Depends(get_db)):
-    db_batch = db.query(Batch).filter(Batch.id == record.batch_id).first()
-    if not db_batch:
-        raise HTTPException(status_code=404, detail="批次不存在")
-    
-    new_record = FeedingRecord(**record.dict())
+    db_batch = _get_batch_or_404(db, record.batch_id)
+    assert_batch_accepts_activity(db, db_batch, record_date=record.feeding_date)
+
+    new_record = FeedingRecord(**record.model_dump())
     db.add(new_record)
     db.commit()
     db.refresh(new_record)
@@ -42,11 +48,17 @@ def update_feeding_record(record_id: int, record: FeedingRecordUpdate, db: Sessi
     db_record = db.query(FeedingRecord).filter(FeedingRecord.id == record_id).first()
     if not db_record:
         raise HTTPException(status_code=404, detail="投喂记录不存在")
-    
-    update_data = record.dict(exclude_unset=True)
+
+    update_data = record.model_dump(exclude_unset=True)
+    target_batch_id = update_data.get("batch_id", db_record.batch_id)
+    target_date = update_data.get("feeding_date", db_record.feeding_date)
+    if "batch_id" in update_data or "feeding_date" in update_data:
+        target_batch = _get_batch_or_404(db, target_batch_id)
+        assert_batch_accepts_activity(db, target_batch, record_date=target_date)
+
     for key, value in update_data.items():
         setattr(db_record, key, value)
-    
+
     db.commit()
     db.refresh(db_record)
     return db_record
@@ -56,7 +68,7 @@ def delete_feeding_record(record_id: int, db: Session = Depends(get_db)):
     db_record = db.query(FeedingRecord).filter(FeedingRecord.id == record_id).first()
     if not db_record:
         raise HTTPException(status_code=404, detail="投喂记录不存在")
-    
+
     db.delete(db_record)
     db.commit()
     return {"message": "投喂记录删除成功"}

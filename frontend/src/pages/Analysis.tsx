@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { TrendingUp, Target, Users, Search, Loader2 } from 'lucide-react';
+import { TrendingUp, Target, Users, Search, Loader2, CalendarDays } from 'lucide-react';
 import { analysisApi, batchApi, pondApi } from '../services/api';
 import type { CultureCycleAnalysis, Batch, Pond, BatchTraceability } from '../types';
+import { batchStatusLabel, batchStatusBadge } from '../constants/status';
 
 const Analysis: React.FC = () => {
   const [batches, setBatches] = useState<Batch[]>([]);
@@ -165,7 +166,11 @@ const Analysis: React.FC = () => {
               </div>
               <div className="p-3 bg-purple-50 rounded-lg">
                 <p className="text-sm text-purple-600">状态</p>
-                <p className="font-semibold">{searchResult.batch.status}</p>
+                <p className="font-semibold">{batchStatusLabel(searchResult.batch.status)}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  版本 v{searchResult.batch.version}
+                  {searchResult.batch.data_quality === 'sanitized' ? ' · 已归一' : ''}
+                </p>
               </div>
             </div>
 
@@ -371,12 +376,8 @@ const Analysis: React.FC = () => {
                       <p className="text-sm text-gray-500">{batch.species}</p>
                       <p className="text-xs text-gray-400">{getPondName(batch.pond_id)}</p>
                     </div>
-                    <span className={`badge ${
-                      batch.status === 'active' ? 'badge-success' :
-                      batch.status === 'completed' ? 'badge-info' : 'badge-warning'
-                    }`}>
-                      {batch.status === 'active' ? '养殖中' :
-                       batch.status === 'completed' ? '已完成' : '待开始'}
+                    <span className={`badge ${batchStatusBadge(batch.status)}`}>
+                      {batchStatusLabel(batch.status)}
                     </span>
                   </div>
                 </div>
@@ -393,9 +394,26 @@ const Analysis: React.FC = () => {
           ) : analysisData && selectedBatchId ? (
             <>
               <div className="card">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 mb-1">
                   养殖周期分析 - {getBatchNumber(selectedBatchId)}
                 </h2>
+                <div className="flex flex-wrap items-center gap-3 mb-4 text-sm">
+                  <span className={`badge ${batchStatusBadge(analysisData.status)}`}>
+                    {batchStatusLabel(analysisData.status)}
+                  </span>
+                  <span className="text-gray-500">
+                    投苗 {analysisData.stocking_date}
+                    {analysisData.harvest_date ? ` / 收获 ${analysisData.harvest_date}` : ''}
+                  </span>
+                  <span className="inline-flex items-center text-ocean-700 font-medium">
+                    <CalendarDays size={15} className="mr-1" />
+                    周期 {analysisData.days_cultured != null ? `${analysisData.days_cultured} 天` : '养殖中'}
+                  </span>
+                  <span className="text-gray-400">数据版本 v{analysisData.version}</span>
+                  {analysisData.data_quality === 'sanitized' && (
+                    <span className="badge badge-warning" title="该批次曾存在矛盾数据,已安全归一">已归一</span>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="p-4 bg-green-50 rounded-lg">
                     <div className="flex items-center space-x-3">

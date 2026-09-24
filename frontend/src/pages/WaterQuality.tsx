@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, X, Droplets, Thermometer, Gauge } from 'lucide-react';
+import axios from 'axios';
 import { waterQualityRecordApi, batchApi } from '../services/api';
 import type { WaterQualityRecord, Batch } from '../types';
 
@@ -77,7 +78,11 @@ const WaterQuality: React.FC = () => {
       });
       fetchData();
     } catch (error) {
-      console.error('Error saving record:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 422) {
+        window.alert(error.response.data?.detail || '该批次已关闭,不能再新增水质记录');
+      } else {
+        console.error('Error saving record:', error);
+      }
     }
   };
 
@@ -275,12 +280,13 @@ const WaterQuality: React.FC = () => {
                   className="select-field"
                 >
                   <option value="">请选择批次</option>
-                  {batches.map((batch) => (
+                  {batches.filter(batch => batch.status !== 'closed').map((batch) => (
                     <option key={batch.id} value={batch.id}>
                       {batch.batch_number} - {batch.species}
                     </option>
                   ))}
                 </select>
+                <p className="text-xs text-gray-400 mt-1">已关闭(已出塘)批次不再接受水质记录</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

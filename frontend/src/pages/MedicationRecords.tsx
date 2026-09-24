@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, X, Pill } from 'lucide-react';
+import axios from 'axios';
 import { medicationRecordApi, batchApi } from '../services/api';
 import type { MedicationRecord, Batch } from '../types';
 
@@ -74,7 +75,11 @@ const MedicationRecords: React.FC = () => {
       });
       fetchData();
     } catch (error) {
-      console.error('Error saving record:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 422) {
+        window.alert(error.response.data?.detail || '该批次已关闭,不能再新增用药记录');
+      } else {
+        console.error('Error saving record:', error);
+      }
     }
   };
 
@@ -239,12 +244,13 @@ const MedicationRecords: React.FC = () => {
                     className="select-field"
                   >
                     <option value="">请选择批次</option>
-                    {batches.map((batch) => (
+                    {batches.filter(batch => batch.status !== 'closed').map((batch) => (
                       <option key={batch.id} value={batch.id}>
                         {batch.batch_number} - {batch.species}
                       </option>
                     ))}
                   </select>
+                  <p className="text-xs text-gray-400 mt-1">已关闭(已出塘)批次不再接受用药记录</p>
                 </div>
 
                 <div>

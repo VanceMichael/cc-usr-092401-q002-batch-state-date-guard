@@ -6,6 +6,7 @@ from datetime import date
 from ..database import get_db
 from ..models import Batch, Pond, StockingRecord, FeedingRecord, CostRecord, HarvestSale, WaterQualityRecord, MedicationRecord
 from ..schemas import CultureCycleAnalysis, BatchTraceability, BatchInfo, PondInfo
+from ..services.batch_service import canonical_state
 
 router = APIRouter(
     prefix="/api/analysis",
@@ -41,9 +42,8 @@ def analyze_cycle(batch_id: int, db: Session = Depends(get_db)):
     ).scalar() or 0
     
     harvest_date = batch.actual_harvest_date
-    days_cultured = None
-    if harvest_date:
-        days_cultured = (harvest_date - batch.stocking_date).days
+    state = canonical_state(batch)
+    days_cultured = state["days_cultured"]
     
     survival_rate = 0
     if initial_quantity > 0 and harvest_weight > 0:
@@ -109,6 +109,9 @@ def analyze_cycle(batch_id: int, db: Session = Depends(get_db)):
         batch_number=batch.batch_number,
         pond_name=pond.name if pond else "未知",
         species=batch.species,
+        status=state["status"],
+        version=state["version"],
+        data_quality=state["data_quality"],
         stocking_date=batch.stocking_date,
         harvest_date=harvest_date,
         days_cultured=days_cultured,
@@ -165,12 +168,18 @@ def batch_traceability(batch_id: int, db: Session = Depends(get_db)):
             stocking_date=batch.stocking_date,
             harvest_date=batch.actual_harvest_date,
             status=batch.status,
+            version=batch.version,
+            data_quality=batch.data_quality,
             pond_id=batch.pond_id
         ),
         pond_info=PondInfo(
             name=pond.name if pond else None,
             area=pond.area if pond else None,
-            water_depth=pond.water_depth if pond else None
+            water_depth=pond.water_depth if pond else None,
+            status=pond.status if pond else None,
+            active_from=pond.active_from if pond else None,
+            active_to=pond.active_to if pond else None,
+            capacity=pond.capacity if pond else None
         ),
         stocking_records=[
             {

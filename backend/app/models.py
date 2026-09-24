@@ -11,7 +11,10 @@ class Pond(Base):
     area = Column(Float, nullable=False, comment="面积(亩)")
     water_depth = Column(Float, nullable=False, comment="水深(米)")
     species = Column(String(100), comment="养殖品种")
-    status = Column(String(20), default="active", comment="状态: active, inactive")
+    status = Column(String(20), default="active", comment="状态: active, inactive(停用)")
+    active_from = Column(Date, nullable=True, comment="塘口有效期起(空表示不限)")
+    active_to = Column(Date, nullable=True, comment="塘口有效期止(空表示不限)")
+    capacity = Column(Integer, nullable=True, default=1, comment="同一时段可容纳的在养批次数量")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -27,17 +30,41 @@ class Batch(Base):
     stocking_date = Column(Date, nullable=False, comment="放苗日期")
     estimated_harvest_date = Column(Date, comment="预计收获日期")
     actual_harvest_date = Column(Date, comment="实际收获日期")
-    status = Column(String(20), default="active", comment="状态: active, harvested, closed")
+    status = Column(String(20), default="active", comment="状态: active(养殖中), harvested(已收获), closed(已关闭/已出塘)")
+    version = Column(Integer, nullable=False, default=1, comment="乐观锁版本号,每次修改递增")
+    data_quality = Column(String(20), nullable=False, default="ok", comment="数据质量: ok, sanitized(已归一)")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     pond = relationship("Pond", back_populates="batches")
+    versions = relationship("BatchVersion", back_populates="batch", cascade="all, delete-orphan",
+                            order_by="BatchVersion.version")
     stocking_records = relationship("StockingRecord", back_populates="batch")
     feeding_records = relationship("FeedingRecord", back_populates="batch")
     water_quality_records = relationship("WaterQualityRecord", back_populates="batch")
     medication_records = relationship("MedicationRecord", back_populates="batch")
     cost_records = relationship("CostRecord", back_populates="batch")
     harvest_sales = relationship("HarvestSale", back_populates="batch")
+
+class BatchVersion(Base):
+    """批次状态机审计版本:每次成功修改生成一个不可变快照。"""
+    __tablename__ = "batch_versions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    batch_id = Column(Integer, ForeignKey("batches.id"), nullable=False, index=True)
+    version = Column(Integer, nullable=False, comment="该版本号(修改后批次version)")
+    action = Column(String(30), nullable=False,
+                    comment="动作: create, update, harvest, close, reopen, revert_harvest, transfer, normalize")
+    from_status = Column(String(20), nullable=True)
+    to_status = Column(String(20), nullable=True)
+    from_pond_id = Column(Integer, nullable=True)
+    to_pond_id = Column(Integer, nullable=True)
+    reason = Column(Text, nullable=True, comment="变更/回退原因(回退必填)")
+    operator = Column(String(100), nullable=True, comment="操作者")
+    snapshot = Column(Text, nullable=False, comment="修改后完整快照(JSON)")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    batch = relationship("Batch", back_populates="versions")
 
 class StockingRecord(Base):
     __tablename__ = "stocking_records"

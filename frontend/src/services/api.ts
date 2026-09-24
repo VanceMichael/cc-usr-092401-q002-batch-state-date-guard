@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type {
-  Pond, Batch, StockingRecord, FeedingRecord, WaterQualityRecord,
+  Pond, Batch, BatchVersion, BatchAnomaly, NormalizeReport,
+  StockingRecord, FeedingRecord, WaterQualityRecord,
   MedicationRecord, CostRecord, HarvestSale, CultureCycleAnalysis,
   CostSummary, FeedingSummary, BatchTraceability
 } from '../types';
@@ -27,12 +28,26 @@ export const pondApi = {
 export const batchApi = {
   getAll: () => api.get<Batch[]>('/batches/'),
   getById: (id: number) => api.get<Batch>(`/batches/${id}/`),
-  getByNumber: (batchNumber: string) => 
+  getByNumber: (batchNumber: string) =>
     api.get<Batch>(`/batches/by-number/${batchNumber}/`),
-  create: (data: Omit<Batch, 'id' | 'created_at' | 'updated_at'>) => 
+  create: (data: Omit<Batch, 'id' | 'version' | 'data_quality' | 'created_at' | 'updated_at'> & { operator?: string; reason?: string }) =>
     api.post<Batch>('/batches/', data),
-  update: (id: number, data: Partial<Batch>) => 
-    api.put<Batch>(`/batches/${id}/`, data),
+  update: (
+    id: number,
+    data: Partial<Omit<Batch, 'id' | 'created_at' | 'updated_at'>> & {
+      expected_version: number;
+      reason?: string;
+      operator?: string;
+    }
+  ) => api.put<Batch>(`/batches/${id}/`, data),
+  history: (id: number) =>
+    api.get<BatchVersion[]>(`/batches/${id}/history/`),
+  anomalies: () =>
+    api.get<BatchAnomaly[]>('/batches/anomalies/'),
+  normalizeOne: (id: number, operator?: string) =>
+    api.post(`/batches/${id}/normalize/`, { operator }),
+  normalizeAll: (operator?: string) =>
+    api.post<NormalizeReport>('/batches/normalize/', { operator }),
   delete: (id: number) => api.delete(`/batches/${id}/`),
 };
 

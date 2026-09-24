@@ -5,6 +5,9 @@ export interface Pond {
   water_depth: number;
   species?: string;
   status: string;
+  active_from?: string;
+  active_to?: string;
+  capacity?: number;
   created_at: string;
   updated_at: string;
 }
@@ -18,8 +21,55 @@ export interface Batch {
   estimated_harvest_date?: string;
   actual_harvest_date?: string;
   status: string;
+  version: number;
+  data_quality: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface BatchVersion {
+  id: number;
+  batch_id: number;
+  version: number;
+  action: string;
+  from_status?: string;
+  to_status?: string;
+  from_pond_id?: number;
+  to_pond_id?: number;
+  reason?: string;
+  operator?: string;
+  snapshot: {
+    batch_number: string;
+    pond_id: number;
+    species: string;
+    stocking_date?: string;
+    estimated_harvest_date?: string;
+    actual_harvest_date?: string;
+    status: string;
+    version: number;
+  };
+  created_at: string;
+}
+
+export interface BatchAnomaly {
+  batch_id: number;
+  batch_number: string;
+  issues: string[];
+  fixable: boolean;
+}
+
+export interface NormalizeItem {
+  batch_id: number;
+  batch_number: string;
+  fixed: string[];
+  remaining: string[];
+}
+
+export interface NormalizeReport {
+  scanned: number;
+  anomalies: number;
+  normalized: number;
+  items: NormalizeItem[];
 }
 
 export interface StockingRecord {
@@ -126,6 +176,9 @@ export interface CultureCycleAnalysis {
   batch_number: string;
   pond_name: string;
   species: string;
+  status: string;
+  version: number;
+  data_quality: string;
   stocking_date: string;
   harvest_date?: string;
   days_cultured?: number;
@@ -198,6 +251,8 @@ export interface BatchInfo {
   stocking_date: string;
   harvest_date?: string;
   status: string;
+  version: number;
+  data_quality: string;
   pond_id?: number;
 }
 
@@ -205,6 +260,10 @@ export interface PondInfo {
   name?: string;
   area?: number;
   water_depth?: number;
+  status?: string;
+  active_from?: string;
+  active_to?: string;
+  capacity?: number;
 }
 
 export interface BatchTraceability {

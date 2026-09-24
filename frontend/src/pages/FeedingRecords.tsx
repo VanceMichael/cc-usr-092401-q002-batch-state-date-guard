@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, X } from 'lucide-react';
+import axios from 'axios';
 import { feedingRecordApi, batchApi } from '../services/api';
 import type { FeedingRecord, Batch } from '../types';
 
@@ -69,7 +70,11 @@ const FeedingRecords: React.FC = () => {
       });
       fetchData();
     } catch (error) {
-      console.error('Error saving record:', error);
+      if (axios.isAxiosError(error) && error.response?.status === 422) {
+        window.alert(error.response.data?.detail || '该批次已关闭,不能再新增投喂记录');
+      } else {
+        console.error('Error saving record:', error);
+      }
     }
   };
 
@@ -223,12 +228,13 @@ const FeedingRecords: React.FC = () => {
                   className="select-field"
                 >
                   <option value="">请选择批次</option>
-                  {batches.map((batch) => (
+                  {batches.filter(batch => batch.status !== 'closed').map((batch) => (
                     <option key={batch.id} value={batch.id}>
                       {batch.batch_number} - {batch.species}
                     </option>
                   ))}
                 </select>
+                <p className="text-xs text-gray-400 mt-1">已关闭(已出塘)批次不再接受投喂记录</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import date, datetime
 
@@ -8,6 +8,9 @@ class PondBase(BaseModel):
     water_depth: float
     species: Optional[str] = None
     status: Optional[str] = "active"
+    active_from: Optional[date] = None
+    active_to: Optional[date] = None
+    capacity: Optional[int] = 1
 
 class PondCreate(PondBase):
     pass
@@ -18,6 +21,9 @@ class PondUpdate(BaseModel):
     water_depth: Optional[float] = None
     species: Optional[str] = None
     status: Optional[str] = None
+    active_from: Optional[date] = None
+    active_to: Optional[date] = None
+    capacity: Optional[int] = None
 
 class PondResponse(PondBase):
     id: int
@@ -25,7 +31,7 @@ class PondResponse(PondBase):
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class BatchBase(BaseModel):
     batch_number: str
@@ -37,9 +43,11 @@ class BatchBase(BaseModel):
     status: Optional[str] = "active"
 
 class BatchCreate(BatchBase):
-    pass
+    operator: Optional[str] = None
+    reason: Optional[str] = None
 
 class BatchUpdate(BaseModel):
+    # 业务字段(全部可选,但不再是无校验的逐字段覆盖)
     batch_number: Optional[str] = None
     pond_id: Optional[int] = None
     species: Optional[str] = None
@@ -47,14 +55,63 @@ class BatchUpdate(BaseModel):
     estimated_harvest_date: Optional[date] = None
     actual_harvest_date: Optional[date] = None
     status: Optional[str] = None
+    # 乐观锁:编辑页必须回传读到的版本号,不匹配返回 409
+    expected_version: int = Field(..., description="提交时基于的批次版本号")
+    # 合法回退(改回养殖中/重开已关闭批次/改动关闭批次的核心日期)必须填写原因
+    reason: Optional[str] = None
+    operator: Optional[str] = None
 
-class BatchResponse(BatchBase):
+class BatchResponse(BaseModel):
     id: int
+    batch_number: str
+    pond_id: int
+    species: str
+    stocking_date: date
+    estimated_harvest_date: Optional[date] = None
+    actual_harvest_date: Optional[date] = None
+    status: str
+    version: int
+    data_quality: str
     created_at: datetime
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
+
+class BatchVersionResponse(BaseModel):
+    id: int
+    batch_id: int
+    version: int
+    action: str
+    from_status: Optional[str] = None
+    to_status: Optional[str] = None
+    from_pond_id: Optional[int] = None
+    to_pond_id: Optional[int] = None
+    reason: Optional[str] = None
+    operator: Optional[str] = None
+    snapshot: dict
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class BatchAnomaly(BaseModel):
+    batch_id: int
+    batch_number: str
+    issues: List[str]
+    fixable: bool
+
+class NormalizeItem(BaseModel):
+    batch_id: int
+    batch_number: str
+    fixed: List[str] = []
+    remaining: List[str] = []
+
+class NormalizeReport(BaseModel):
+    scanned: int
+    anomalies: int
+    normalized: int
+    items: List[NormalizeItem] = []
 
 class StockingRecordBase(BaseModel):
     batch_id: int
@@ -84,7 +141,7 @@ class StockingRecordResponse(StockingRecordBase):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class FeedingRecordBase(BaseModel):
     batch_id: int
@@ -114,7 +171,7 @@ class FeedingRecordResponse(FeedingRecordBase):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class WaterQualityRecordBase(BaseModel):
     batch_id: int
@@ -148,7 +205,7 @@ class WaterQualityRecordResponse(WaterQualityRecordBase):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class MedicationRecordBase(BaseModel):
     batch_id: int
@@ -184,7 +241,7 @@ class MedicationRecordResponse(MedicationRecordBase):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class CostRecordBase(BaseModel):
     batch_id: int
@@ -216,7 +273,7 @@ class CostRecordResponse(CostRecordBase):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class HarvestSaleBase(BaseModel):
     batch_id: int
@@ -248,7 +305,7 @@ class HarvestSaleResponse(HarvestSaleBase):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class CostSummaryItem(BaseModel):
     type: str
@@ -263,6 +320,9 @@ class CultureCycleAnalysis(BaseModel):
     batch_number: str
     pond_name: str
     species: str
+    status: str
+    version: int
+    data_quality: str
     stocking_date: date
     harvest_date: Optional[date] = None
     days_cultured: Optional[int] = None
@@ -323,12 +383,18 @@ class BatchInfo(BaseModel):
     stocking_date: date
     harvest_date: Optional[date] = None
     status: str
+    version: int = 1
+    data_quality: str = "ok"
     pond_id: Optional[int] = None
 
 class PondInfo(BaseModel):
     name: Optional[str] = None
     area: Optional[float] = None
     water_depth: Optional[float] = None
+    status: Optional[str] = None
+    active_from: Optional[date] = None
+    active_to: Optional[date] = None
+    capacity: Optional[int] = None
 
 class BatchTraceability(BaseModel):
     batch: BatchInfo
